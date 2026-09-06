@@ -1,0 +1,66 @@
+# 智能充电桩后端 — JetBrains HTTP Client 脚本
+# 先启动服务：.venv/Scripts/python.exe -m uvicorn app.main:app --reload
+# 流程：注册/登录拿 token → 站点 → 充电会话 → 订单。契约见 doc/后端设计文档.md
+
+### 健康检查
+GET http://127.0.0.1:8000/health
+Accept: application/json
+
+### 注册（重复则改用下方登录）
+POST http://127.0.0.1:8000/api/v1/auth/register
+Content-Type: application/json
+
+{
+  "username": "13800000001",
+  "password": "***"
+}
+
+### 登录（成功后把响应 token 填入下方 {{token}} 使用，或手动替换）
+POST http://127.0.0.1:8000/api/v1/auth/login
+Content-Type: application/json
+
+{
+  "username": "13800000001",
+  "password": "***"
+}
+
+### 当前用户
+GET http://127.0.0.1:8000/api/v1/auth/me
+Authorization: Bearer {{token}}
+
+### 附近电站列表
+GET http://127.0.0.1:8000/api/v1/stations
+Authorization: Bearer {{token}}
+
+### 站点详情
+GET http://127.0.0.1:8000/api/v1/stations/s1
+Authorization: Bearer {{token}}
+
+### 扫码解析（按桩编号查桩）
+GET http://127.0.0.1:8000/api/v1/piles/by-code/p000000002
+Authorization: Bearer {{token}}
+
+### 启动充电
+POST http://127.0.0.1:8000/api/v1/charging/start
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "pileId": "p000000002"
+}
+
+### 充电实时数据（轮询口径，一期服务端模拟）
+GET http://127.0.0.1:8000/api/v1/charging/current
+Authorization: Bearer {{token}}
+
+### 结束充电（把上一步订单号填入 CO... 段）
+POST http://127.0.0.1:8000/api/v1/charging/替换为实际订单号/stop
+Authorization: Bearer {{token}}
+
+### 订单列表
+GET http://127.0.0.1:8000/api/v1/orders
+Authorization: Bearer {{token}}
+
+### 订单详情
+GET http://127.0.0.1:8000/api/v1/orders/替换为实际订单号
+Authorization: Bearer {{token}}
