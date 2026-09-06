@@ -1,0 +1,14 @@
+# 运行依赖（与 doc/后端设计文档.md §2 对应，版本以当前 venv 实测为准）
+fastapi==0.141.1
+uvicorn==0.52.4
+pydantic==2.13.5
+pydantic-settings==2.15.0
+SQLAlchemy==2.0.52
+aiosqlite==0.22.1
+greenlet==3.5.5
+PyJWT==2.13.0
+bcrypt==5.0.0
+
+# 开发/测试依赖
+pytest==9.1.1
+httpx==0.28.1

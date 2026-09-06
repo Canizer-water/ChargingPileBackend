@@ -1,0 +1,14 @@
+# 环境与依赖
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# 本地配置与数据（含密钥/数据库，严禁入库）
+.env
+data/
+*.log
+
+# IDE 本地状态
+.idea/workspace.xml
+.idea/deployment.xml
