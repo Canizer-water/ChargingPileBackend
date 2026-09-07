@@ -60,4 +60,5 @@ tests/             # conftest(临时库+TestClient) + 四业务文件 + test_con
 ## 工程约定
 
 - 遵循用户级全局 CLAUDE.md（`~/.claude/CLAUDE.md`）：现代类型注解、Conventional Commits、提交前隐私扫描、敏感配置走 `.env`。
+- 提交前隐私扫描除代码外，**必须同时检查二进制文档的元数据 PII**：`.docx`/`.xlsx`/PDF 的 creator/lastModifiedBy 可能含真实姓名或邮箱。用 `git grep` 查不到（压缩对象），需解包检查：`unzip -p FILE docProps/core.xml`。发现即先脱敏（改属性再 `filter-branch` 重写历史，勿只靠新提交覆盖），再推送。注意 `git add <目录>` 会把目录里的未知文件一并带上，提交前先 `git status` 看清新增项。
 - 新增依赖必须同步 `requirements.txt`（当前已固化 fastapi 0.141.1 / SQLAlchemy 2.0.52 / pydantic 2.13.5 / PyJWT 2.13 / bcrypt 5.0 等）。
