@@ -27,4 +27,17 @@ class UserOut(CamelModel):
 
 class TokenResult(CamelModel):
     token: str
+    refresh_token: str
     user: UserOut
+
+
+class RefreshRequest(CamelModel):
+    refresh_token: str
+
+
+class LogoutRequest(CamelModel):
+    refresh_token: str | None = None
+
+
+class ProfileUpdateRequest(CamelModel):
+    avatar: str | None = None

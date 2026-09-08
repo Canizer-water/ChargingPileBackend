@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     secret_key: str = "change-me"  # 生产必须经环境变量覆盖
     jwt_algorithm: str = "HS256"
     jwt_expire_minutes: int = 120
+    refresh_token_expire_days: int = 7
 
     database_url: str = "sqlite+aiosqlite:///./data/app.db"
     cors_origins: list[str] = ["*"]

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import secrets
 from datetime import datetime, timedelta, timezone
 
 import bcrypt
@@ -41,3 +42,8 @@ def decode_access_token(token: str) -> str | None:
         return None
     sub = payload.get("sub")
     return sub if isinstance(sub, str) else None
+
+
+def create_refresh_token() -> str:
+    """生成高强度随机刷新令牌（不经 JWT，落库以便撤销与轮换）。"""
+    return secrets.token_urlsafe(48)

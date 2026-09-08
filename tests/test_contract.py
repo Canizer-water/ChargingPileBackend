@@ -8,14 +8,25 @@ from __future__ import annotations
 from app.schemas.charging import RealtimeOut, StartOrderRequest
 from app.schemas.order import OrderOut
 from app.schemas.station import PileOut, StationOut
-from app.schemas.user import LoginRequest, RegisterRequest, TokenResult, UserOut
+from app.schemas.user import (
+    LoginRequest,
+    LogoutRequest,
+    ProfileUpdateRequest,
+    RefreshRequest,
+    RegisterRequest,
+    TokenResult,
+    UserOut,
+)
 
 EXPECTED_KEYS: dict[str, set[str]] = {
     # 前端 Types.ets: UserAccount（去 password，服务端永不回传）
     "UserOut": {"id", "username", "avatar", "createdAt"},
-    "TokenResult": {"token", "user"},
+    "TokenResult": {"token", "refreshToken", "user"},
     "RegisterRequest": {"username", "password"},
     "LoginRequest": {"username", "password"},
+    "RefreshRequest": {"refreshToken"},
+    "LogoutRequest": {"refreshToken"},
+    "ProfileUpdateRequest": {"avatar"},
     # 前端 Types.ets: ChargingPile
     "PileOut": {"id", "stationId", "code", "powerKw", "pricePerKwh", "interfaceType", "status"},
     # 前端 Types.ets: ChargingStation
@@ -38,6 +49,8 @@ def test_model_field_contracts():
     models = {
         "UserOut": UserOut, "TokenResult": TokenResult,
         "RegisterRequest": RegisterRequest, "LoginRequest": LoginRequest,
+        "RefreshRequest": RefreshRequest, "LogoutRequest": LogoutRequest,
+        "ProfileUpdateRequest": ProfileUpdateRequest,
         "PileOut": PileOut, "StationOut": StationOut,
         "OrderOut": OrderOut, "RealtimeOut": RealtimeOut,
         "StartOrderRequest": StartOrderRequest,

@@ -38,7 +38,8 @@ def _register_or_login(client, phone: str, password: str = "pwd-123456") -> dict
         res = client.post(f"{API}/auth/login", json={"username": phone, "password": password})
     assert res.status_code in (200, 201), res.text
     data = res.json()
-    return {"token": data["token"], "user": data["user"], "phone": phone, "password": password}
+    return {"token": data["token"], "refreshToken": data["refreshToken"],
+            "user": data["user"], "phone": phone, "password": password}
 
 
 @pytest.fixture
