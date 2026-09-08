@@ -1,7 +1,8 @@
 """实时数据提供者（设计文档 §7 三期共用抽象）。
 
 RealtimeProvider.snapshot(order, pile, now) 是唯一取数入口；
-sim=无状态推导（可测试、重启不丢会话），mqtt=读桩上报缓存（三期），陈旧自动回退 sim。
+sim=无状态推导（可测试、重启不丢会话），simulator=独立模拟桩 REST 遥测（B2），
+mqtt=读桩上报缓存（三期）；后两者陈旧/缺数据时自动回退 sim。
 """
 
 from __future__ import annotations
@@ -68,6 +69,27 @@ class SimulatedProvider:
         return simulate_snapshot(order.unit_price, pile.power_kw, order.start_time, now)
 
 
+class SimulatorTelemetryProvider:
+    """二期 B2：独立模拟桩经 REST 上报的遥测优先；无数据/陈旧时回退 SimulatedProvider。
+
+    与 MqttProvider 同构：桩码不在缓存或数据陈旧时回退模拟，保证 GET/WS 永不空窗。
+    """
+
+    def __init__(self) -> None:
+        self._fallback = SimulatedProvider()
+
+    def snapshot(self, order: ChargingOrder, pile: Pile, now: datetime) -> RealtimeOut:
+        snap: RealtimeSnapshot | None = SNAPSHOT_CACHE.get(order.pile_code)
+        if snap is None:
+            return self._fallback.snapshot(order, pile, now)
+        age = SNAPSHOT_CACHE.age_seconds(order.pile_code)
+        if age is not None and age > SNAPSHOT_STALE_SECONDS:
+            logger.warning("pile %s simulator telemetry stale (%.1fs), fallback to simulation",
+                           order.pile_code, age)
+            return self._fallback.snapshot(order, pile, now)
+        return snap.data
+
+
 class MqttProvider:
     """三期：读 MQTT 上报缓存；桩码不在缓存或数据陈旧时回退模拟并告警。"""
 
@@ -92,8 +114,11 @@ _provider: RealtimeProvider | None = None
 def get_provider() -> RealtimeProvider:
     global _provider
     if _provider is None:
-        if get_settings().realtime_source == "mqtt":
+        source = get_settings().realtime_source
+        if source == "mqtt":
             _provider = MqttProvider()
+        elif source == "simulator":
+            _provider = SimulatorTelemetryProvider()
         else:
             _provider = SimulatedProvider()
     return _provider

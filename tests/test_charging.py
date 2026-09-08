@@ -49,7 +49,8 @@ def test_full_charging_session(client, auth):
     assert set(snap) == REALTIME_KEYS
     assert snap["durationSec"] >= 0
     assert snap["energyKwh"] >= 0
-    assert snap["estimatedCost"] == round(snap["energyKwh"] * order["unitPrice"], 2)
+    # 服务端口径：energyKwh 先按展示精度舍入，再乘单价快照（避免 <1s 启动窗口的浮点边界竞态）
+    assert snap["estimatedCost"] == round(round(snap["energyKwh"], 2) * order["unitPrice"], 2)
     assert snap["powerKw"] > 0
 
     # 结束并结算

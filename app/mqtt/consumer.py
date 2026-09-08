@@ -36,6 +36,12 @@ class SnapshotCache:
         snap = self._snapshots.get(pile_code)
         return (time.monotonic() - snap.received_at) if snap else None
 
+    def remove(self, pile_code: str) -> None:
+        self._snapshots.pop(pile_code, None)
+
+    def clear(self) -> None:
+        self._snapshots.clear()
+
 
 #: 进程级单例（与 realtime provider 共享）
 SNAPSHOT_CACHE = SnapshotCache()

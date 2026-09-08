@@ -21,6 +21,7 @@ from app.models.pile import Pile, PileStatus
 from app.models.station import Station
 from app.schemas.charging import RealtimeOut
 from app.services.realtime import get_provider
+from app.services.simulator import clear_telemetry
 
 
 class BizError(Exception):
@@ -49,6 +50,38 @@ async def get_active_order(db: AsyncSession, user_id: str) -> ChargingOrder | No
         .limit(1)
     )
     return result.scalar_one_or_none()
+
+
+async def require_active_session(
+    db: AsyncSession, user_id: str, order_id: str
+) -> tuple[ChargingOrder, Pile]:
+    """会话订阅校验：必须是本人进行中的订单（越权/不存在/已结束 → 404，不泄露存在性）。"""
+    order = await db.get(ChargingOrder, order_id)
+    if order is None or order.user_id != user_id or order.status != OrderStatus.CHARGING.value:
+        raise BizError(404, "没有进行中的充电会话")
+    pile = await _pile_by_code(db, order.pile_code)
+    if pile is None:
+        raise BizError(409, "桩档案缺失，无法提供实时数据")
+    return order, pile
+
+
+async def _settle_order(db: AsyncSession, order: ChargingOrder) -> ChargingOrder:
+    """结算并落 FINISHED（不变式 2/3）：桩档案缺失抛 409；完成后释放桩并清遥测。"""
+    pile = await _pile_by_code(db, order.pile_code)
+    if pile is None:
+        raise BizError(409, "桩档案缺失，无法结算")
+
+    now = utc_now()
+    snap = get_provider().snapshot(order, pile, now)
+    order.end_time = now
+    order.duration_min = max(1, round(snap.duration_sec / 60))
+    order.energy_kwh = snap.energy_kwh
+    order.amount = round(snap.energy_kwh * order.unit_price, 2)
+    order.status = OrderStatus.FINISHED.value
+    pile.status = PileStatus.IDLE.value
+    clear_telemetry(order.pile_code)
+    await db.commit()
+    return order
 
 
 async def start_order(db: AsyncSession, user_id: str, pile_id: str) -> ChargingOrder:
@@ -89,28 +122,37 @@ async def stop_order(db: AsyncSession, user_id: str, order_id: str) -> ChargingO
         raise BizError(404, "订单不存在")
     if order.status == OrderStatus.FINISHED.value:
         raise BizError(409, "订单已结束")
+    return await _settle_order(db, order)
 
-    pile = await _pile_by_code(db, order.pile_code)
+
+async def settle_active_order_for_pile(db: AsyncSession, pile_code: str) -> ChargingOrder | None:
+    """设备完成上报（B2 /done）触发的裁决：桩上有进行中订单则按同一结算路径收官。
+
+    桩空闲/无订单返回 None（设备报告“停充”时后端无可结算会话即视为幂等完成）；
+    桩档案缺失抛 409。裁决权仍在本模块，模拟器只送数据、不落订单。
+    """
+    pile = await _pile_by_code(db, pile_code)
     if pile is None:
-        raise BizError(409, "桩档案缺失，无法结算")
+        raise BizError(404, "充电桩不存在")
+    if pile.status != PileStatus.CHARGING.value:
+        return None
 
-    now = utc_now()
-    snap = get_provider().snapshot(order, pile, now)
-    order.end_time = now
-    order.duration_min = max(1, round(snap.duration_sec / 60))
-    order.energy_kwh = snap.energy_kwh
-    order.amount = round(snap.energy_kwh * order.unit_price, 2)
-    order.status = OrderStatus.FINISHED.value
-    pile.status = PileStatus.IDLE.value
-    await db.commit()
-    return order
+    result = await db.execute(
+        select(ChargingOrder)
+        .where(ChargingOrder.pile_code == pile_code,
+               ChargingOrder.status == OrderStatus.CHARGING.value)
+        .order_by(ChargingOrder.start_time.desc())
+        .limit(1)
+    )
+    order = result.scalar_one_or_none()
+    if order is None:
+        return None
+    return await _settle_order(db, order)
 
 
 async def current_realtime(db: AsyncSession, user_id: str) -> tuple[ChargingOrder, RealtimeOut]:
     order = await get_active_order(db, user_id)
     if order is None:
         raise BizError(404, "没有进行中的充电会话")
-    pile = await _pile_by_code(db, order.pile_code)
-    if pile is None:
-        raise BizError(409, "桩档案缺失，无法提供实时数据")
+    order, pile = await require_active_session(db, user_id, order.id)
     return order, get_provider().snapshot(order, pile, utc_now())

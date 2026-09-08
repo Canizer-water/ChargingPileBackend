@@ -7,11 +7,11 @@ from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 
 from app.core.config import get_settings
 from app.db import Base, get_session_factory, init_engine
-from app.routers import auth, charging, orders, stations
+from app.routers import auth, charging, orders, simulator, stations, ws
 from app.seed import seed_if_empty
 from app.services.charging import BizError
 
@@ -54,8 +54,14 @@ def create_app() -> FastAPI:
     async def health() -> dict[str, str]:
         return {"status": "ok"}
 
-    for module in (auth, stations, charging, orders):
+    @app.get("/", include_in_schema=False)
+    async def index() -> RedirectResponse:
+        """根路径友好入口：直接跳转交互式 API 文档（/docs）。"""
+        return RedirectResponse(url="/docs")
+
+    for module in (auth, stations, charging, orders, simulator):
         app.include_router(module.router, prefix=settings.api_prefix)
+    app.include_router(ws.router, prefix=settings.api_prefix)
     return app
 
 

@@ -18,8 +18,11 @@ class Settings(BaseSettings):
     database_url: str = "sqlite+aiosqlite:///./data/app.db"
     cors_origins: list[str] = ["*"]
 
-    # 实时数据来源：sim=服务端模拟（一期）；mqtt=桩上报缓存（三期预留）
+    # 实时数据来源：sim=服务端模拟（一期，默认）；simulator=B2 独立模拟桩遥测；mqtt=MQTT 桩上报（三期预留）
     realtime_source: str = "sim"
+
+    # ---- B2 独立模拟充电桩进程（scripts/charger_sim.py）----
+    simulator_heartbeat_interval_sec: int = 10
 
     # ---- 华为云 IoTDA / MQTT（三期启用，本期仅预留）----
     mqtt_enabled: bool = False
