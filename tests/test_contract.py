@@ -6,17 +6,14 @@
 from __future__ import annotations
 
 from app.schemas.charging import RealtimeOut, StartOrderRequest
-from app.schemas.order import OrderOut
+from app.schemas.common import Envelope
+from app.schemas.order import OrderOut, OrderPage
+from app.schemas.scan import ScanResolveRequest
 from app.schemas.station import PileOut, StationOut
-from app.schemas.user import (
-    LoginRequest,
-    LogoutRequest,
-    ProfileUpdateRequest,
-    RefreshRequest,
-    RegisterRequest,
-    TokenResult,
-    UserOut,
-)
+from app.schemas.stat import DailyStatsOut
+from app.schemas.user import (LoginRequest, LogoutRequest, ProfileUpdateRequest,
+                              RefreshRequest, RegisterRequest, TokenResult, UserOut,
+                              UserSettingsOut, UserSettingsUpdate)
 
 EXPECTED_KEYS: dict[str, set[str]] = {
     # 前端 Types.ets: UserAccount（去 password，服务端永不回传）
@@ -38,6 +35,13 @@ EXPECTED_KEYS: dict[str, set[str]] = {
     # 前端 Types.ets: RealTimeChargingData
     "RealtimeOut": {"voltage", "current", "powerKw", "durationSec", "energyKwh", "estimatedCost"},
     "StartOrderRequest": {"pileId"},
+    # D 域（刘薇·feat/d-orders）新增映射（设计文档 §5.5/§5.6）
+    "Envelope": {"success", "errorCode", "message", "data"},
+    "UserSettingsOut": {"autoStop", "stopEnergyKwh", "stopThreshold"},
+    "UserSettingsUpdate": {"autoStop", "stopEnergyKwh", "stopThreshold"},
+    "OrderPage": {"items", "page", "size", "total"},
+    "ScanResolveRequest": {"code"},
+    "DailyStatsOut": {"date", "totalEnergyKwh", "totalAmount", "orderCount"},
 }
 
 
@@ -54,6 +58,10 @@ def test_model_field_contracts():
         "PileOut": PileOut, "StationOut": StationOut,
         "OrderOut": OrderOut, "RealtimeOut": RealtimeOut,
         "StartOrderRequest": StartOrderRequest,
+        "Envelope": Envelope,
+        "UserSettingsOut": UserSettingsOut, "UserSettingsUpdate": UserSettingsUpdate,
+        "OrderPage": OrderPage,
+        "ScanResolveRequest": ScanResolveRequest, "DailyStatsOut": DailyStatsOut,
     }
     assert set(models) == set(EXPECTED_KEYS)
     for name, model in models.items():

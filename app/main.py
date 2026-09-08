@@ -11,7 +11,7 @@ from fastapi.responses import JSONResponse
 
 from app.core.config import get_settings
 from app.db import Base, get_session_factory, init_engine
-from app.routers import auth, charging, orders, stations, user
+from app.routers import auth, charging, orders, scan, stations, stats, user
 from app.seed import seed_if_empty
 from app.services.charging import BizError
 
@@ -54,7 +54,7 @@ def create_app() -> FastAPI:
     async def health() -> dict[str, str]:
         return {"status": "ok"}
 
-    for module in (auth, stations, charging, orders, user):
+    for module in (auth, stations, charging, orders, scan, user, stats):
         app.include_router(module.router, prefix=settings.api_prefix)
     return app
 

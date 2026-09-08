@@ -16,9 +16,11 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.timeutil import utc_now
+from app.models.daily_stat import DailyChargingStat
 from app.models.order import ChargingOrder, OrderStatus
 from app.models.pile import Pile, PileStatus
 from app.models.station import Station
+from app.models.user_setting import UserSetting
 from app.schemas.charging import RealtimeOut
 from app.services.realtime import get_provider
 
@@ -36,9 +38,18 @@ def _gen_order_id(now: datetime) -> str:
     return f"CO{now:%Y%m%d%H%M%S}{random.randint(1000, 9999)}"
 
 
-async def _pile_by_code(db: AsyncSession, code: str) -> Pile | None:
+def _gen_stat_id(now: datetime) -> str:
+    return f"DS{now:%Y%m%d%H%M%S}{random.randint(1000, 9999)}"
+
+
+async def find_pile_by_code(db: AsyncSession, code: str) -> Pile | None:
+    """按桩码（二维码内容）查桩，扫码解析入口共用。"""
     result = await db.execute(select(Pile).where(Pile.code == code))
     return result.scalar_one_or_none()
+
+
+# 兼容内部旧引用
+_pile_by_code = find_pile_by_code
 
 
 async def get_active_order(db: AsyncSession, user_id: str) -> ChargingOrder | None:
@@ -102,8 +113,35 @@ async def stop_order(db: AsyncSession, user_id: str, order_id: str) -> ChargingO
     order.amount = round(snap.energy_kwh * order.unit_price, 2)
     order.status = OrderStatus.FINISHED.value
     pile.status = PileStatus.IDLE.value
+    await _upsert_daily_stat(db, user_id, order, now)
     await db.commit()
     return order
+
+
+async def get_or_create_settings(db: AsyncSession, user_id: str) -> UserSetting:
+    """自动断电偏好：一行一用户，懒创建（无记录返回默认值，不落库）。"""
+    row = await db.get(UserSetting, user_id)
+    if row is None:
+        row = UserSetting(user_id=user_id, auto_stop=False, stop_energy_kwh=0.0, stop_threshold=90.0)
+    return row
+
+
+async def set_settings(db: AsyncSession, user_id: str,
+                       auto_stop: bool | None,
+                       stop_energy_kwh: float | None,
+                       stop_threshold: float | None) -> UserSetting:
+    row = await db.get(UserSetting, user_id)
+    if row is None:
+        row = UserSetting(user_id=user_id, auto_stop=False, stop_energy_kwh=0.0, stop_threshold=90.0)
+        db.add(row)
+    if auto_stop is not None:
+        row.auto_stop = auto_stop
+    if stop_energy_kwh is not None:
+        row.stop_energy_kwh = stop_energy_kwh
+    if stop_threshold is not None:
+        row.stop_threshold = stop_threshold
+    await db.commit()
+    return row
 
 
 async def current_realtime(db: AsyncSession, user_id: str) -> tuple[ChargingOrder, RealtimeOut]:
@@ -113,4 +151,39 @@ async def current_realtime(db: AsyncSession, user_id: str) -> tuple[ChargingOrde
     pile = await _pile_by_code(db, order.pile_code)
     if pile is None:
         raise BizError(409, "桩档案缺失，无法提供实时数据")
-    return order, get_provider().snapshot(order, pile, utc_now())
+    now = utc_now()
+    snap = get_provider().snapshot(order, pile, now)
+    stopped = await _auto_stop_if_needed(db, user_id, order, snap)
+    if stopped:
+        raise BizError(404, "没有进行中的充电会话")
+    return order, snap
+
+
+async def _upsert_daily_stat(db: AsyncSession, user_id: str, order: ChargingOrder, now: datetime) -> None:
+    """结算后按 user_id+date（naive UTC 日期）upsert 当天累计（§4 daily_charging_stats）。"""
+    date = order.end_time.date().isoformat()
+    result = await db.execute(
+        select(DailyChargingStat).where(DailyChargingStat.user_id == user_id, DailyChargingStat.date == date)
+    )
+    stat = result.scalar_one_or_none()
+    if stat is None:
+        stat = DailyChargingStat(
+            id=_gen_stat_id(now), user_id=user_id, date=date,
+            total_energy_kwh=order.energy_kwh, total_amount=order.amount, order_count=1,
+        )
+        db.add(stat)
+    else:
+        stat.total_energy_kwh = round(stat.total_energy_kwh + order.energy_kwh, 2)
+        stat.total_amount = round(stat.total_amount + order.amount, 2)
+        stat.order_count += 1
+
+
+async def _auto_stop_if_needed(db: AsyncSession, user_id: str, order: ChargingOrder, snap: RealtimeOut) -> bool:
+    """自动断电：开启 autoStop 且电量达到阈值时结算（仍走 stop_order，守不变式）。"""
+    settings = await get_or_create_settings(db, user_id)
+    if not settings.auto_stop or settings.stop_energy_kwh <= 0:
+        return False
+    if snap.energy_kwh < settings.stop_energy_kwh:
+        return False
+    await stop_order(db, user_id, order.id)
+    return True
