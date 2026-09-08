@@ -4,7 +4,7 @@ from typing import Literal
 
 from app.schemas.common import CamelModel
 
-PileStatusLiteral = Literal["IDLE", "CHARGING", "OFFLINE"]
+PileStatusLiteral = Literal["IDLE", "CHARGING", "OFFLINE", "FAULT"]
 
 
 class PileOut(CamelModel):

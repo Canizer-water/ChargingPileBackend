@@ -29,6 +29,7 @@ SEED_STATIONS: list[dict] = [
         "piles": [
             {"id": "p100000001", "code": "p100000001", "power_kw": 180, "price_per_kwh": 1.45, "interface_type": "国标2015 国标2011", "status": "IDLE"},
             {"id": "p100000002", "code": "p100000002", "power_kw": 90, "price_per_kwh": 1.20, "interface_type": "国标2015", "status": "IDLE"},
+            {"id": "p100000003", "code": "p100000003", "power_kw": 60, "price_per_kwh": 1.10, "interface_type": "国标2011", "status": "FAULT"},
         ],
     },
     {

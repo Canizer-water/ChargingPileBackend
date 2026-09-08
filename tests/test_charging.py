@@ -79,3 +79,51 @@ def test_stop_foreign_order_404(client, auth, make_user):
 
     # 清理本会话
     client.post(f"{API}/charging/{order['id']}/stop", headers=headers)
+
+
+ESTIMATE_KEYS = {"pileId", "unitPrice", "powerKw", "expectedEnergyKwh", "estimatedCost"}
+
+
+def test_start_fault_pile_409(client, auth):
+    """FAULT 桩启动充电必须拒绝（C 域 · Story 6/7/8）。"""
+    res = client.post(f"{API}/charging/start", json={"pileId": "p100000003"}, headers=bearer(auth["token"]))
+    assert res.status_code == 409
+
+
+def test_estimate_ok(client, auth):
+    """费用预估：电量 = 功率 × 时长，费用 = 电量 × 单价（C 域 · Story 10）。"""
+    res = client.post(
+        f"{API}/charging/estimate",
+        json={"pileId": "p000000002", "expectedMinutes": 60},
+        headers=bearer(auth["token"]),
+    )
+    assert res.status_code == 200, res.text
+    data = res.json()
+    assert set(data) == ESTIMATE_KEYS
+    assert data["pileId"] == "p000000002"
+    assert data["powerKw"] == 150
+    assert data["unitPrice"] == 1.35
+    assert data["expectedEnergyKwh"] == round(150 * 60 / 60, 2)
+    assert data["estimatedCost"] == round(data["expectedEnergyKwh"] * data["unitPrice"], 2)
+
+
+def test_estimate_fault_pile_409(client, auth):
+    res = client.post(
+        f"{API}/charging/estimate",
+        json={"pileId": "p100000003", "expectedMinutes": 30},
+        headers=bearer(auth["token"]),
+    )
+    assert res.status_code == 409
+
+
+def test_estimate_unknown_pile_404(client, auth):
+    res = client.post(
+        f"{API}/charging/estimate",
+        json={"pileId": "p-none", "expectedMinutes": 30},
+        headers=bearer(auth["token"]),
+    )
+    assert res.status_code == 404
+
+
+def test_estimate_requires_auth(client):
+    assert client.post(f"{API}/charging/estimate", json={"pileId": "p000000002", "expectedMinutes": 10}).status_code == 401

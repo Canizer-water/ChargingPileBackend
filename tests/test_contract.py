@@ -5,10 +5,11 @@
 
 from __future__ import annotations
 
-from app.schemas.charging import RealtimeOut, StartOrderRequest
+from app.schemas.charging import EstimateOut, EstimateRequest, RealtimeOut, StartOrderRequest
 from app.schemas.order import OrderOut
 from app.schemas.station import PileOut, StationOut
 from app.schemas.user import LoginRequest, RegisterRequest, TokenResult, UserOut
+from app.schemas.vehicle import VehicleOut
 
 EXPECTED_KEYS: dict[str, set[str]] = {
     # 前端 Types.ets: UserAccount（去 password，服务端永不回传）
@@ -27,6 +28,10 @@ EXPECTED_KEYS: dict[str, set[str]] = {
     # 前端 Types.ets: RealTimeChargingData
     "RealtimeOut": {"voltage", "current", "powerKw", "durationSec", "energyKwh", "estimatedCost"},
     "StartOrderRequest": {"pileId"},
+    # C 域新增（前端 Vehicle DTO / 费用预估）
+    "VehicleOut": {"plateNo", "battery", "rangeKm"},
+    "EstimateRequest": {"pileId", "expectedMinutes"},
+    "EstimateOut": {"pileId", "unitPrice", "powerKw", "expectedEnergyKwh", "estimatedCost"},
 }
 
 
@@ -41,6 +46,7 @@ def test_model_field_contracts():
         "PileOut": PileOut, "StationOut": StationOut,
         "OrderOut": OrderOut, "RealtimeOut": RealtimeOut,
         "StartOrderRequest": StartOrderRequest,
+        "VehicleOut": VehicleOut, "EstimateRequest": EstimateRequest, "EstimateOut": EstimateOut,
     }
     assert set(models) == set(EXPECTED_KEYS)
     for name, model in models.items():

@@ -12,6 +12,7 @@ class PileStatus(str, enum.Enum):
     IDLE = "IDLE"
     CHARGING = "CHARGING"
     OFFLINE = "OFFLINE"
+    FAULT = "FAULT"
 
 
 class Pile(Base):

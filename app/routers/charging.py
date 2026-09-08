@@ -7,9 +7,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import get_current_user, get_db
 from app.models.user import User
-from app.schemas.charging import RealtimeOut, StartOrderRequest
+from app.schemas.charging import EstimateOut, EstimateRequest, RealtimeOut, StartOrderRequest
 from app.schemas.order import OrderOut, order_to_out
-from app.services.charging import current_realtime, start_order, stop_order
+from app.services.charging import current_realtime, estimate_order, start_order, stop_order
 
 router = APIRouter(prefix="/charging", tags=["charging"])
 
@@ -18,6 +18,12 @@ router = APIRouter(prefix="/charging", tags=["charging"])
 async def start(body: StartOrderRequest, db: AsyncSession = Depends(get_db),
                 user: User = Depends(get_current_user)) -> OrderOut:
     return order_to_out(await start_order(db, user.id, body.pile_id))
+
+
+@router.post("/estimate", response_model=EstimateOut)
+async def estimate(body: EstimateRequest, db: AsyncSession = Depends(get_db),
+                   user: User = Depends(get_current_user)) -> EstimateOut:
+    return await estimate_order(db, body.pile_id, body.expected_minutes)
 
 
 @router.get("/current", response_model=RealtimeOut)
