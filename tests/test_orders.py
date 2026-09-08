@@ -16,13 +16,14 @@ def test_orders_isolated_per_user(client, auth, make_user):
 
     res = client.get(f"{API}/orders", headers=headers)
     assert res.status_code == 200
-    orders = res.json()
-    assert len(orders) == 1
-    assert orders[0]["id"] == done["id"]
+    page = res.json()["data"]
+    assert page["total"] == 1
+    assert page["page"] == 1 and page["size"] == 10
+    assert page["items"][0]["id"] == done["id"]
 
     # 新用户看不到别人的订单
     other_headers = bearer(make_user()["token"])
-    assert client.get(f"{API}/orders", headers=other_headers).json() == []
+    assert client.get(f"{API}/orders", headers=other_headers).json()["data"]["total"] == 0
     assert client.get(f"{API}/orders/{done['id']}", headers=other_headers).status_code == 404
 
 
@@ -30,8 +31,7 @@ def test_orders_list_newest_first(client, auth):
     headers = bearer(auth["token"])
     first = _finish_one_session(client, headers)
     second = _finish_one_session(client, headers)
-    orders = client.get(f"{API}/orders", headers=headers).json()
-    ids = [o["id"] for o in orders]
+    ids = [o["id"] for o in client.get(f"{API}/orders", headers=headers).json()["data"]["items"]]
     assert ids[0] == second["id"]
     assert first["id"] in ids
     assert len(ids) == len(set(ids))  # 订单号无碰撞

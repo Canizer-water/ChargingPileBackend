@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Generic, TypeVar
 
 from pydantic import BaseModel, ConfigDict
 from pydantic.alias_generators import to_camel
+
+T = TypeVar("T")
 
 
 class CamelModel(BaseModel):
@@ -21,3 +24,20 @@ def fmt_datetime(dt: datetime | None) -> str:
     if dt is None:
         return ""
     return dt.strftime("%Y-%m-%d %H:%M:%S")
+
+
+class Envelope(CamelModel, Generic[T]):
+    """统一成功响应包（设计文档 §5.6）：success/errorCode/message/data。
+
+    错误仍由全局异常处理器返回 {"detail"}，由前端 HTTP 层映射为 {success, message}。
+    """
+
+    success: bool = True
+    error_code: int = 0
+    message: str = "ok"
+    data: T | None = None
+
+
+def ok(data: T, message: str = "ok") -> Envelope[T]:
+    """成功响应便捷构造。"""
+    return Envelope(success=True, error_code=0, message=message, data=data)

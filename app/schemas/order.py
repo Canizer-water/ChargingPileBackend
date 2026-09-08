@@ -23,6 +23,15 @@ class OrderOut(CamelModel):
     status: OrderStatusLiteral
 
 
+class OrderPage(CamelModel):
+    """订单分页（设计文档 §5.4）：items/page/size/total。"""
+
+    items: list[OrderOut]
+    page: int
+    size: int
+    total: int
+
+
 def order_to_out(order) -> OrderOut:
     return OrderOut(
         id=order.id,

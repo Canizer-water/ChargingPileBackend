@@ -28,3 +28,17 @@ class UserOut(CamelModel):
 class TokenResult(CamelModel):
     token: str
     user: UserOut
+
+
+class UserSettingsOut(CamelModel):
+    """自动断电偏好（设计文档 §5.5）。与前端 Types.ets: UserSettings 对齐。"""
+
+    auto_stop: bool
+    stop_energy_kwh: float
+    stop_threshold: float
+
+
+class UserSettingsUpdate(CamelModel):
+    auto_stop: bool | None = None
+    stop_energy_kwh: float | None = None
+    stop_threshold: float | None = None
