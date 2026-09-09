@@ -7,11 +7,15 @@ p300000001 保留 OFFLINE（离线桩无订单，语义不冲突）。
 
 from __future__ import annotations
 
+import logging
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.pile import Pile, PileStatus
 from app.models.station import Station
+
+logger = logging.getLogger(__name__)
 
 SEED_STATIONS: list[dict] = [
     {
@@ -68,3 +72,23 @@ async def seed_if_empty(db: AsyncSession) -> bool:
                         **{k: v for k, v in pile.items() if k != "status"}))
     await db.commit()
     return True
+
+
+def backfill_geometry(conn) -> None:
+    """把旧库（坐标列刚补上、值为 0）的站点/桩坐标按种子回填。幂等，仅 SQLite。"""
+    if conn.dialect.name != "sqlite":
+        return
+    try:
+        for item in SEED_STATIONS:
+            st = item["station"]
+            conn.exec_driver_sql(
+                "UPDATE stations SET lat=?, lng=? WHERE id=? AND (lat IS NULL OR lat=0)",
+                (st["lat"], st["lng"], st["id"]),
+            )
+            for pile in item["piles"]:
+                conn.exec_driver_sql(
+                    "UPDATE piles SET lat=?, lng=? WHERE id=? AND (lat IS NULL OR lat=0)",
+                    (pile["lat"], pile["lng"], pile["id"]),
+                )
+    except Exception as exc:  # noqa: BLE001 - 坐标列缺失等场景不阻断启动
+        logger.warning("backfill_geometry 跳过：%s", exc)

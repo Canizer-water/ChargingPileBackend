@@ -11,9 +11,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, RedirectResponse
 
 from app.core.config import get_settings
-from app.db import Base, get_session_factory, init_engine
+from app.db import Base, get_session_factory, init_engine, sync_missing_columns
 from app.routers import ai, auth, charging, orders, scan, simulator, stations, stats, user, vehicle, ws
-from app.seed import seed_if_empty
+from app.seed import backfill_geometry, seed_if_empty
 from app.services.charging import BizError
 
 logger = logging.getLogger(__name__)
@@ -37,6 +37,9 @@ def create_app() -> FastAPI:
         engine = init_engine(settings.database_url)
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
+            # 轻量迁移：给旧表补缺失列 + 回填坐标（避免“no such column”）
+            await conn.run_sync(sync_missing_columns)
+            await conn.run_sync(backfill_geometry)
         async with get_session_factory()() as session:
             await seed_if_empty(session)
         # 三期 MQTT：MQTT_ENABLED=true 时激活（paho 线程，失败仅告警不阻断启动）
