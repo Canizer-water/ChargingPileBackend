@@ -11,16 +11,20 @@ from app.schemas.order import OrderOut, OrderPage
 from app.schemas.scan import ScanResolveRequest
 from app.schemas.station import PileOut, StationOut
 from app.schemas.stat import DailyStatsOut
-from app.schemas.user import (LoginRequest, RegisterRequest, TokenResult, UserOut,
+from app.schemas.user import (LoginRequest, LogoutRequest, ProfileUpdateRequest,
+                              RefreshRequest, RegisterRequest, TokenResult, UserOut,
                               UserSettingsOut, UserSettingsUpdate)
 from app.schemas.vehicle import VehicleOut
 
 EXPECTED_KEYS: dict[str, set[str]] = {
     # 前端 Types.ets: UserAccount（去 password，服务端永不回传）
     "UserOut": {"id", "username", "avatar", "createdAt"},
-    "TokenResult": {"token", "user"},
+    "TokenResult": {"token", "refreshToken", "user"},
     "RegisterRequest": {"username", "password"},
     "LoginRequest": {"username", "password"},
+    "RefreshRequest": {"refreshToken"},
+    "LogoutRequest": {"refreshToken"},
+    "ProfileUpdateRequest": {"avatar"},
     # 前端 Types.ets: ChargingPile
     "PileOut": {"id", "stationId", "code", "powerKw", "pricePerKwh", "interfaceType", "status"},
     # 前端 Types.ets: ChargingStation
@@ -54,6 +58,8 @@ def test_model_field_contracts():
     models = {
         "UserOut": UserOut, "TokenResult": TokenResult,
         "RegisterRequest": RegisterRequest, "LoginRequest": LoginRequest,
+        "RefreshRequest": RefreshRequest, "LogoutRequest": LogoutRequest,
+        "ProfileUpdateRequest": ProfileUpdateRequest,
         "PileOut": PileOut, "StationOut": StationOut,
         "OrderOut": OrderOut, "RealtimeOut": RealtimeOut,
         "StartOrderRequest": StartOrderRequest,
