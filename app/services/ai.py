@@ -9,16 +9,21 @@ from __future__ import annotations
 import json
 import logging
 import re
+from datetime import timedelta
 from typing import Any
 
 import httpx
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
 from app.core.timeutil import utc_now
+from app.models.daily_stat import DailyChargingStat
 from app.models.order import ChargingOrder, OrderStatus
-from app.models.pile import Pile
+from app.models.pile import Pile, PileStatus
+from app.models.station import Station
+from app.models.user_setting import UserSetting
+from app.models.vehicle import Vehicle
 from app.schemas.ai import ChatRequest, ChatResponse, ChatUsage, PlateRequest, PlateResponse
 from app.schemas.common import fmt_datetime
 from app.services.charging import BizError
@@ -28,47 +33,111 @@ logger = logging.getLogger(__name__)
 
 
 async def build_device_context(db: AsyncSession, user_id: str) -> str:
-    """当前用户充电/订单状态文本，注入 system prompt（对齐前端 DeviceState）。"""
+    """汇总当前用户的实时充电状态与画像，注入 system prompt。
+
+    数据来源全部为库内真实状态：进行中订单 + RealtimeProvider 快照、同站桩位、
+    车辆、自动断电偏好、最近完成订单、近 30 天统计。
+    """
     lines: list[str] = []
-    active = await db.execute(
+
+    # 平台概况：站/桩总数与各状态计数，与用户有无进行中订单无关
+    station_total = (await db.execute(select(func.count(Station.id)))).scalar_one()
+    pile_statuses = (await db.execute(select(Pile.status))).scalars().all()
+    idle = pile_statuses.count(PileStatus.IDLE.value)
+    charging = pile_statuses.count(PileStatus.CHARGING.value)
+    offline = pile_statuses.count(PileStatus.OFFLINE.value)
+    fault = pile_statuses.count(PileStatus.FAULT.value)
+    lines.append(
+        f"- 平台概况：充电站 {station_total} 个；充电桩 {len(pile_statuses)} 把"
+        f"（空闲 {idle}、充电中 {charging}、离线 {offline}、故障 {fault}）"
+    )
+
+    order = (await db.execute(
         select(ChargingOrder)
         .where(ChargingOrder.user_id == user_id,
                ChargingOrder.status == OrderStatus.CHARGING.value)
         .order_by(ChargingOrder.start_time.desc())
         .limit(1)
-    )
-    order = active.scalar_one_or_none()
+    )).scalar_one_or_none()
+
     if order is not None:
-        pile = (await db.execute(select(Pile).where(Pile.code == order.pile_code))).scalar_one_or_none()
+        pile = (await db.execute(
+            select(Pile).where(Pile.code == order.pile_code)
+        )).scalar_one_or_none()
         if pile is not None:
             snap = get_provider().snapshot(order, pile, utc_now())
             lines.append(
-                f"- 正在充电：桩 {order.pile_code}，已充 {snap.duration_sec:.0f} 秒，"
-                f"功率 {snap.power_kw:.1f}kW，电压 {snap.voltage:.1f}V，电流 {snap.current:.1f}A，"
-                f"电量 {snap.energy_kwh:.2f}kWh，预估费用 {snap.estimated_cost:.2f} 元"
+                f"- 正在充电：{order.station_name or order.station_id} · 桩 {order.pile_code}"
+                f"（{pile.interface_type or '接口未知'}，额定 {pile.power_kw:.0f}kW，状态 {pile.status}），"
+                f"{fmt_datetime(order.start_time)} 开始，已充 {snap.duration_sec / 60:.0f} 分钟"
             )
-    recent = await db.execute(
+            lines.append(
+                f"  实时电气量：电压 {snap.voltage:.1f}V、电流 {snap.current:.1f}A、"
+                f"功率 {snap.power_kw:.1f}kW；已充电量 {snap.energy_kwh:.2f}kWh、"
+                f"单价 {order.unit_price:.2f} 元/度、当前预估费用 {snap.estimated_cost:.2f} 元"
+            )
+            mine = (await db.execute(
+                select(Pile.status).where(Pile.station_id == order.station_id)
+            )).scalars().all()
+            lines.append(
+                f"  该充电站桩位：共 {len(mine)} 把，其中空闲 {mine.count(PileStatus.IDLE.value)} 把"
+            )
+    else:
+        lines.append("- 当前没有进行中的充电订单")
+
+    vehicle = (await db.execute(
+        select(Vehicle).where(Vehicle.user_id == user_id)
+    )).scalar_one_or_none()
+    if vehicle is not None:
+        lines.append(
+            f"- 车辆：车牌 {vehicle.plate_no or '未填写'}，剩余电量 {vehicle.battery}%，"
+            f"表显续航 {vehicle.range_km}km"
+        )
+
+    pref = (await db.execute(
+        select(UserSetting).where(UserSetting.user_id == user_id)
+    )).scalar_one_or_none()
+    if pref is not None:
+        lines.append(
+            f"- 自动断电偏好：{'开启' if pref.auto_stop else '关闭'}"
+            f"（目标电量 {pref.stop_threshold:.0f}%、充电量上限 {pref.stop_energy_kwh:.0f}kWh，0 表示不限制）"
+        )
+
+    done = (await db.execute(
         select(ChargingOrder)
         .where(ChargingOrder.user_id == user_id,
                ChargingOrder.status == OrderStatus.FINISHED.value)
         .order_by(ChargingOrder.end_time.desc())
         .limit(1)
-    )
-    done = recent.scalar_one_or_none()
+    )).scalar_one_or_none()
     if done is not None:
         lines.append(
-            f"- 最近一次充电：桩 {done.pile_code}，{fmt_datetime(done.start_time)} 至 "
-            f"{fmt_datetime(done.end_time)}，电量 {done.energy_kwh:.2f}kWh，费用 {done.amount:.2f} 元"
+            f"- 最近一次已完成订单：{done.station_name or done.station_id} · 桩 {done.pile_code}，"
+            f"{fmt_datetime(done.start_time)} 至 {fmt_datetime(done.end_time)}，"
+            f"{done.duration_min} 分钟，{done.energy_kwh:.2f}kWh，实付 {done.amount:.2f} 元"
         )
+
+    since = (utc_now() - timedelta(days=30)).strftime("%Y-%m-%d")
+    stats = (await db.execute(
+        select(
+            func.coalesce(func.sum(DailyChargingStat.total_energy_kwh), 0.0),
+            func.coalesce(func.sum(DailyChargingStat.total_amount), 0.0),
+            func.coalesce(func.sum(DailyChargingStat.order_count), 0),
+        ).where(DailyChargingStat.user_id == user_id, DailyChargingStat.date >= since)
+    )).one()
+    lines.append(
+        f"- 近 30 天累计：充电 {stats[2]} 次、{stats[0]:.2f}kWh、{stats[1]:.2f} 元"
+    )
     return "\n".join(lines)
 
 
 def _system_prompt(context: str) -> str:
     base = (
-        "你是智能充电桩平台的 AI 助手，请用中文简洁回答用户关于充电、订单、设备状态的问题。"
-        "只能依据下方提供的真实状态回答；不确定的内容请明确说明，不要编造。"
+        "你是智能充电桩平台的 AI 助手，用中文简洁回答关于充电状态、订单、费用与桩位的问题。"
+        "只能依据下方提供的真实数据作答，不要编造；数据未覆盖的问题直接说明无法确认。"
+        "涉及金额时注明单位为元、电量为 kWh、时长为分钟。"
     )
-    return f"{base}\n当前用户状态：\n{context}" if context else base
+    return f"{base}\n\n【当前用户实时数据】\n{context}" if context else base
 
 
 _PLATE_PROMPT = (

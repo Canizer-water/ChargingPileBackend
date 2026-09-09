@@ -226,6 +226,25 @@ def test_chat_success_and_forward_payload(client, auth, monkeypatch):
     assert "AI 助手" in payload["messages"][0]["content"]
 
 
+def test_chat_injects_platform_totals(client, auth, monkeypatch):
+    """全平台站/桩总数要进上下文（种子数据 4 站 9 桩），否则助手答不出「一共几个站」。"""
+    settings = __import__("app.core.config", fromlist=["get_settings"]).get_settings()
+    monkeypatch.setattr(settings, "ark_api_key", "test-key")
+    monkeypatch.setattr(settings, "ark_model", "test-chat-model")
+    captured: dict = {}
+    monkeypatch.setattr("app.services.ai.httpx.AsyncClient.post", _ok_post(captured))
+
+    res = client.post(
+        f"{API}/ai/chat",
+        json={"messages": [{"role": "user", "content": "一共有几个充电站？"}]},
+        headers=bearer(auth["token"]),
+    )
+    assert res.status_code == 200
+    system = captured["json"]["messages"][0]["content"]
+    assert "平台概况：充电站 4 个；充电桩 9 把" in system
+    assert "空闲" in system and "故障" in system
+
+
 def test_chat_402_maps_to_biz_error(client, auth, monkeypatch):
     settings = __import__("app.core.config", fromlist=["get_settings"]).get_settings()
     monkeypatch.setattr(settings, "ark_api_key", "test-key")
@@ -265,5 +284,34 @@ def test_chat_injects_charging_context(client, auth, monkeypatch):
         system = captured["json"]["messages"][0]["content"]
         assert "正在充电" in system
         assert order.json()["pileCode"] in system
+        # 站点名称/桩位/电气量与单价都进了上下文（回答「还要多久」「这个站还有空枪吗」的数据基础）
+        assert "该充电站桩位" in system
+        assert "元/度" in system
+        assert "近 30 天累计" in system
     finally:
         client.post(f"{API}/charging/{order.json()['id']}/stop", headers=headers)
+
+
+def test_chat_injects_profile_without_active_order(client, auth, monkeypatch):
+    """无进行中订单时仍注入车辆/断电偏好画像，并明确说明当前没有充电中订单。"""
+    settings = __import__("app.core.config", fromlist=["get_settings"]).get_settings()
+    monkeypatch.setattr(settings, "ark_api_key", "test-key")
+    monkeypatch.setattr(settings, "ark_model", "test-chat-model")
+    headers = bearer(auth["token"])
+    client.get(f"{API}/vehicle/current", headers=headers)
+    client.put(f"{API}/user/settings", json={"autoStop": True, "stopThreshold": 85},
+               headers=headers)
+
+    captured: dict = {}
+    monkeypatch.setattr("app.services.ai.httpx.AsyncClient.post", _ok_post(captured))
+    res = client.post(
+        f"{API}/ai/chat",
+        json={"messages": [{"role": "user", "content": "我设的自动断电是多少？"}]},
+        headers=headers,
+    )
+    assert res.status_code == 200
+    system = captured["json"]["messages"][0]["content"]
+    assert "当前没有进行中的充电订单" in system
+    assert "车辆：" in system
+    assert "自动断电偏好：开启" in system
+    assert "85%" in system
