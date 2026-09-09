@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -14,6 +15,8 @@ from app.db import Base, get_session_factory, init_engine
 from app.routers import auth, charging, orders, scan, simulator, stations, stats, user, vehicle, ws
 from app.seed import seed_if_empty
 from app.services.charging import BizError
+
+logger = logging.getLogger(__name__)
 
 
 def _ensure_sqlite_dir(url: str) -> None:
@@ -36,7 +39,29 @@ def create_app() -> FastAPI:
             await conn.run_sync(Base.metadata.create_all)
         async with get_session_factory()() as session:
             await seed_if_empty(session)
+        # 三期 MQTT：MQTT_ENABLED=true 时激活（paho 线程，失败仅告警不阻断启动）
+        consumer_started = False
+        if settings.mqtt_enabled:
+            from app.mqtt.consumer import start_consumer, stop_consumer
+            try:
+                start_consumer()
+                consumer_started = True
+            except Exception as exc:  # noqa: BLE001 - 连接失败不阻断 API
+                logger.warning("MQTT consumer 启动失败（跳过）：%s", exc)
+        # IoTDA 影子回环桥：IOTDA_ENABLED=true 时激活（上报模拟桩 + 收影子刷缓存）
+        bridge_started = False
+        if settings.iotda_enabled:
+            from app.services.device_bridge import start_bridge, stop_bridge
+            try:
+                start_bridge()
+                bridge_started = True
+            except Exception as exc:  # noqa: BLE001 - 桥起不来不阻断 API
+                logger.warning("IoTDA device_bridge 启动失败（跳过）：%s", exc)
         yield
+        if consumer_started:
+            stop_consumer()
+        if bridge_started:
+            stop_bridge()
 
     app = FastAPI(title=settings.app_name, lifespan=lifespan)
     app.add_middleware(

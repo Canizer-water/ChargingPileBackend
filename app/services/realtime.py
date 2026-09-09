@@ -2,7 +2,7 @@
 
 RealtimeProvider.snapshot(order, pile, now) 是唯一取数入口；
 sim=无状态推导（可测试、重启不丢会话），simulator=独立模拟桩 REST 遥测（B2），
-mqtt=读桩上报缓存（三期）；后两者陈旧/缺数据时自动回退 sim。
+mqtt=读 MQTT 上报缓存，shadow=读 IoTDA 影子轮询缓存（三期）；后三者陈旧/缺数据时自动回退 sim。
 """
 
 from __future__ import annotations
@@ -22,6 +22,8 @@ logger = logging.getLogger(__name__)
 
 #: 数据新鲜度阈值（秒）：MQTT 缓存超过该时长视为陈旧，回退模拟
 SNAPSHOT_STALE_SECONDS = 10.0
+#: 影子轮询写入的缓存陈旧阈值（略宽于 report+poll 周期，避免误回退）
+SHADOW_STALE_SECONDS = 12.0
 
 
 def _energy_at(pile_power_kw: float, t_sec: float) -> float:
@@ -91,6 +93,24 @@ class SimulatorTelemetryProvider:
         return snap.data
 
 
+class ShadowProvider:
+    """三期：读 IoTDA 影子轮询写入的缓存；桩码缺/陈旧时回退 SimulatedProvider。"""
+
+    def __init__(self) -> None:
+        self._fallback = SimulatedProvider()
+
+    def snapshot(self, order: ChargingOrder, pile: Pile, now: datetime) -> RealtimeOut:
+        snap: RealtimeSnapshot | None = SNAPSHOT_CACHE.get(order.pile_code)
+        if snap is None:
+            return self._fallback.snapshot(order, pile, now)
+        age = SNAPSHOT_CACHE.age_seconds(order.pile_code)
+        if age is not None and age > SHADOW_STALE_SECONDS:
+            logger.warning("pile %s shadow telemetry stale (%.1fs), fallback to simulation",
+                           order.pile_code, age)
+            return self._fallback.snapshot(order, pile, now)
+        return snap.data
+
+
 class MqttProvider:
     """三期：读 MQTT 上报缓存；桩码不在缓存或数据陈旧时回退模拟并告警。"""
 
@@ -120,6 +140,8 @@ def get_provider() -> RealtimeProvider:
             _provider = MqttProvider()
         elif source == "simulator":
             _provider = SimulatorTelemetryProvider()
+        elif source == "shadow":
+            _provider = ShadowProvider()
         else:
             _provider = SimulatedProvider()
     return _provider

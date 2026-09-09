@@ -9,6 +9,8 @@ _TMP = tempfile.mkdtemp(prefix="chargingpile-test-")
 os.environ["DATABASE_URL"] = f"sqlite+aiosqlite:///{os.path.join(_TMP, 'test.db').replace(os.sep, '/')}"
 os.environ["SECRET_KEY"] = "unit-test-secret-0123456789abcdef0123456789abcdef"  # ≥32B，避免 HS256 短密钥告警
 os.environ["REALTIME_SOURCE"] = "sim"
+os.environ["MQTT_ENABLED"] = "false"  # 测试不连云，MQTT 接入仅随 .env 在生产启动时激活
+os.environ["IOTDA_ENABLED"] = "false"  # IoTDA 影子桥不连云，仅 .env 启动时激活
 
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402

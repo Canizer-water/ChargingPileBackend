@@ -8,6 +8,8 @@ aiosqlite==0.22.1
 greenlet==3.5.5
 PyJWT==2.13.0
 bcrypt==5.0.0
+# MQTT 接入（三期华为云 IoTDA；用 paho 线程而非 aiomqtt——Windows Proactor 循环不支持其 socket 回调）
+paho-mqtt==2.1.0
 
 # 开发/测试依赖
 pytest==9.1.1
