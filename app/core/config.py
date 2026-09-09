@@ -50,6 +50,13 @@ class Settings(BaseSettings):
     iotda_poll_sec: int = 3   # 收端：查影子周期
     iotda_report_sec: int = 3  # 上报端：设备上报周期
 
+    # ---- 火山引擎方舟 Ark（Doubao / DeepSeek 大模型代理，密钥与模型只走 .env）----
+    ark_api_key: str = ""  # 必填，未配置时 /ai/chat、/ai/plate 返回 503
+    ark_base_url: str = "https://ark.cn-beijing.volces.com/api/coding/v3"
+    ark_model: str = ""  # 必填：对话模型名或 ep-xxx 推理接入点，按账号实际可用填写
+    ark_vision_model: str = ""  # 必填：车牌识别视觉模型或接入点（需支持图像输入）
+    ai_request_timeout_sec: float = 60.0
+
 
 @lru_cache
 def get_settings() -> Settings:

@@ -12,7 +12,7 @@ from fastapi.responses import JSONResponse, RedirectResponse
 
 from app.core.config import get_settings
 from app.db import Base, get_session_factory, init_engine
-from app.routers import auth, charging, orders, scan, simulator, stations, stats, user, vehicle, ws
+from app.routers import ai, auth, charging, orders, scan, simulator, stations, stats, user, vehicle, ws
 from app.seed import seed_if_empty
 from app.services.charging import BizError
 
@@ -84,7 +84,7 @@ def create_app() -> FastAPI:
         """根路径友好入口：直接跳转交互式 API 文档（/docs）。"""
         return RedirectResponse(url="/docs")
 
-    for module in (auth, stations, charging, orders, scan, user, stats, vehicle, simulator):
+    for module in (ai, auth, stations, charging, orders, scan, user, stats, vehicle, simulator):
         app.include_router(module.router, prefix=settings.api_prefix)
     app.include_router(ws.router, prefix=settings.api_prefix)
     return app
