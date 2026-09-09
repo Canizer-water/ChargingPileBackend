@@ -16,35 +16,39 @@ from app.models.station import Station
 SEED_STATIONS: list[dict] = [
     {
         "station": {"id": "s1", "name": "诺得充电中心", "address": "「地上」五圆路东街159号诺得大厦",
+                    "lat": 34.2600, "lng": 108.9520,
                     "distance_km": 0.03, "price_per_kwh": 1.15, "business_hours": "00:00-22:22"},
         "piles": [
-            {"id": "p000000002", "code": "p000000002", "power_kw": 150, "price_per_kwh": 1.35, "interface_type": "国标2015 国标2011", "status": "IDLE"},
-            {"id": "p000000003", "code": "p000000003", "power_kw": 120, "price_per_kwh": 1.25, "interface_type": "国标2015", "status": "IDLE"},
-            {"id": "p000000004", "code": "p000000004", "power_kw": 60, "price_per_kwh": 1.15, "interface_type": "国标2011", "status": "IDLE"},
+            {"id": "p000000002", "code": "p000000002", "lat": 34.2602, "lng": 108.9525, "power_kw": 150, "price_per_kwh": 1.35, "interface_type": "国标2015 国标2011", "status": "IDLE"},
+            {"id": "p000000003", "code": "p000000003", "lat": 34.2606, "lng": 108.9521, "power_kw": 120, "price_per_kwh": 1.25, "interface_type": "国标2015", "status": "IDLE"},
+            {"id": "p000000004", "code": "p000000004", "lat": 34.2598, "lng": 108.9517, "power_kw": 60, "price_per_kwh": 1.15, "interface_type": "国标2011", "status": "IDLE"},
         ],
     },
     {
         "station": {"id": "s2", "name": "智慧e充·天辰店", "address": "「地上」天辰大厦西路88号",
+                    "lat": 34.2555, "lng": 108.9470,
                     "distance_km": 0.8, "price_per_kwh": 1.20, "business_hours": "00:00-24:00"},
         "piles": [
-            {"id": "p100000001", "code": "p100000001", "power_kw": 180, "price_per_kwh": 1.45, "interface_type": "国标2015 国标2011", "status": "IDLE"},
-            {"id": "p100000002", "code": "p100000002", "power_kw": 90, "price_per_kwh": 1.20, "interface_type": "国标2015", "status": "IDLE"},
-            {"id": "p100000003", "code": "p100000003", "power_kw": 60, "price_per_kwh": 1.10, "interface_type": "国标2011", "status": "FAULT"},
+            {"id": "p100000001", "code": "p100000001", "lat": 34.2558, "lng": 108.9473, "power_kw": 180, "price_per_kwh": 1.45, "interface_type": "国标2015 国标2011", "status": "IDLE"},
+            {"id": "p100000002", "code": "p100000002", "lat": 34.2552, "lng": 108.9468, "power_kw": 90, "price_per_kwh": 1.20, "interface_type": "国标2015", "status": "IDLE"},
+            {"id": "p100000003", "code": "p100000003", "lat": 34.2560, "lng": 108.9475, "power_kw": 60, "price_per_kwh": 1.10, "interface_type": "国标2011", "status": "FAULT"},
         ],
     },
     {
         "station": {"id": "s3", "name": "星充能源大厦站", "address": "「地下」会展大道199号能源大厦B2",
+                    "lat": 34.2620, "lng": 108.9400,
                     "distance_km": 1.6, "price_per_kwh": 1.05, "business_hours": "08:00-22:00"},
         "piles": [
-            {"id": "p300000001", "code": "p300000001", "power_kw": 120, "price_per_kwh": 1.10, "interface_type": "国标2015 国标2011", "status": "OFFLINE"},
-            {"id": "p300000002", "code": "p300000002", "power_kw": 60, "price_per_kwh": 1.05, "interface_type": "国标2011", "status": "IDLE"},
+            {"id": "p300000001", "code": "p300000001", "lat": 34.2623, "lng": 108.9403, "power_kw": 120, "price_per_kwh": 1.10, "interface_type": "国标2015 国标2011", "status": "OFFLINE"},
+            {"id": "p300000002", "code": "p300000002", "lat": 34.2617, "lng": 108.9397, "power_kw": 60, "price_per_kwh": 1.05, "interface_type": "国标2011", "status": "IDLE"},
         ],
     },
     {
         "station": {"id": "s4", "name": "绿色出行会展中心站", "address": "「地上」会展大道100号",
+                    "lat": 34.2660, "lng": 108.9460,
                     "distance_km": 2.4, "price_per_kwh": 1.02, "business_hours": "00:00-24:00"},
         "piles": [
-            {"id": "p400000001", "code": "p400000001", "power_kw": 7, "price_per_kwh": 1.02, "interface_type": "国标交流", "status": "IDLE"},
+            {"id": "p400000001", "code": "p400000001", "lat": 34.2662, "lng": 108.9462, "power_kw": 7, "price_per_kwh": 1.02, "interface_type": "国标交流", "status": "IDLE"},
         ],
     },
 ]

@@ -14,6 +14,8 @@ class Station(Base):
     id: Mapped[str] = mapped_column(String(16), primary_key=True)
     name: Mapped[str] = mapped_column(String(64))
     address: Mapped[str] = mapped_column(String(128))
+    lat: Mapped[float] = mapped_column(Float, default=0.0)
+    lng: Mapped[float] = mapped_column(Float, default=0.0)
     distance_km: Mapped[float] = mapped_column(Float, default=0.0)
     price_per_kwh: Mapped[float] = mapped_column(Float, default=0.0)
     business_hours: Mapped[str] = mapped_column(String(32), default="00:00-24:00")

@@ -12,7 +12,8 @@ from tests.test_orders import _finish_one_session
 from tests.test_stations import pick_idle_pile
 
 ENVELOPE_KEYS = {"success", "errorCode", "message", "data"}
-PILE_KEYS = {"id", "stationId", "code", "powerKw", "pricePerKwh", "interfaceType", "status"}
+PILE_KEYS = {"id", "stationId", "code", "latitude", "longitude", "powerKw", "pricePerKwh",
+             "interfaceType", "status"}
 SETTINGS_KEYS = {"autoStop", "stopEnergyKwh", "stopThreshold"}
 STAT_KEYS = {"date", "totalEnergyKwh", "totalAmount", "orderCount"}
 ORDER_PAGE_KEYS = {"items", "page", "size", "total"}
