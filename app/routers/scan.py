@@ -12,7 +12,7 @@ from app.core.deps import get_current_user, get_db
 from app.models.user import User
 from app.schemas.common import Envelope, ok
 from app.schemas.scan import ScanResolveRequest
-from app.schemas.station import PileOut
+from app.schemas.station import PileOut, pile_to_out
 from app.services.charging import BizError, find_pile_by_code
 
 router = APIRouter(prefix="/scan", tags=["scan"])
@@ -24,4 +24,4 @@ async def resolve(body: ScanResolveRequest, db: AsyncSession = Depends(get_db),
     pile = await find_pile_by_code(db, body.code)
     if pile is None:
         raise BizError(404, "充电桩不存在")
-    return ok(PileOut.model_validate(pile))
+    return ok(pile_to_out(pile))

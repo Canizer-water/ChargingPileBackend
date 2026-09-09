@@ -23,6 +23,8 @@ class Pile(Base):
     id: Mapped[str] = mapped_column(String(16), primary_key=True)
     station_id: Mapped[str] = mapped_column(ForeignKey("stations.id"), index=True)
     code: Mapped[str] = mapped_column(String(16), unique=True, index=True)
+    lat: Mapped[float] = mapped_column(Float, default=0.0)
+    lng: Mapped[float] = mapped_column(Float, default=0.0)
     power_kw: Mapped[float] = mapped_column(Float)
     price_per_kwh: Mapped[float] = mapped_column(Float)
     interface_type: Mapped[str] = mapped_column(String(32), default="")

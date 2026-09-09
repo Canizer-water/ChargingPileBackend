@@ -25,10 +25,11 @@ EXPECTED_KEYS: dict[str, set[str]] = {
     "RefreshRequest": {"refreshToken"},
     "LogoutRequest": {"refreshToken"},
     "ProfileUpdateRequest": {"avatar"},
-    # 前端 Types.ets: ChargingPile
-    "PileOut": {"id", "stationId", "code", "powerKw", "pricePerKwh", "interfaceType", "status"},
-    # 前端 Types.ets: ChargingStation
-    "StationOut": {"id", "name", "address", "distanceKm", "freePiles",
+    # 前端 Types.ets: ChargingPile（v0.6 地图：新增 latitude/longitude）
+    "PileOut": {"id", "stationId", "code", "latitude", "longitude", "powerKw", "pricePerKwh",
+                "interfaceType", "status"},
+    # 前端 Types.ets: ChargingStation（v0.6 地图：新增 latitude/longitude）
+    "StationOut": {"id", "name", "address", "latitude", "longitude", "distanceKm", "freePiles",
                    "pricePerKwh", "businessHours", "piles"},
     # 前端 Types.ets: ChargingOrder
     "OrderOut": {"id", "stationId", "stationName", "pileCode", "startTime", "endTime",
