@@ -43,6 +43,7 @@ def simulate_snapshot(unit_price: float, pile_power_kw: float, started_at: datet
     """从会话起始时间无状态推导当前 tick（确定性：伪抖动用 sin(t)，无随机数）。"""
     t_sec = max((now - started_at).total_seconds(), 0.0)
     energy = _energy_at(pile_power_kw, t_sec)
+    energy_kwh = round(energy, 2)
     factor = max(0.5, 0.8 - energy / 400.0)
     power = pile_power_kw * factor
     voltage = 720.0 + 30.0 * math.sin(t_sec / 7.0)
@@ -52,8 +53,8 @@ def simulate_snapshot(unit_price: float, pile_power_kw: float, started_at: datet
         current=round(current, 1),
         power_kw=round(power, 1),
         duration_sec=round(t_sec, 0),
-        energy_kwh=round(energy, 2),
-        estimated_cost=round(energy * unit_price, 2),
+        energy_kwh=energy_kwh,
+        estimated_cost=round(energy_kwh * unit_price, 2),
     )
 
 

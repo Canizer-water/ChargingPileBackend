@@ -5,7 +5,7 @@
 
 from __future__ import annotations
 
-from app.schemas.charging import RealtimeOut, StartOrderRequest
+from app.schemas.charging import EstimateOut, EstimateRequest, RealtimeOut, StartOrderRequest
 from app.schemas.common import Envelope
 from app.schemas.order import OrderOut, OrderPage
 from app.schemas.scan import ScanResolveRequest
@@ -13,6 +13,7 @@ from app.schemas.station import PileOut, StationOut
 from app.schemas.stat import DailyStatsOut
 from app.schemas.user import (LoginRequest, RegisterRequest, TokenResult, UserOut,
                               UserSettingsOut, UserSettingsUpdate)
+from app.schemas.vehicle import VehicleOut
 
 EXPECTED_KEYS: dict[str, set[str]] = {
     # 前端 Types.ets: UserAccount（去 password，服务端永不回传）
@@ -38,6 +39,10 @@ EXPECTED_KEYS: dict[str, set[str]] = {
     "OrderPage": {"items", "page", "size", "total"},
     "ScanResolveRequest": {"code"},
     "DailyStatsOut": {"date", "totalEnergyKwh", "totalAmount", "orderCount"},
+    # C 域（xiarepaiti·feat/c-data）新增映射（设计文档 §5.3/§5.5）
+    "VehicleOut": {"plateNo", "battery", "rangeKm"},
+    "EstimateRequest": {"pileId", "expectedMinutes"},
+    "EstimateOut": {"pileId", "unitPrice", "powerKw", "expectedEnergyKwh", "estimatedCost"},
 }
 
 
@@ -56,6 +61,7 @@ def test_model_field_contracts():
         "UserSettingsOut": UserSettingsOut, "UserSettingsUpdate": UserSettingsUpdate,
         "OrderPage": OrderPage,
         "ScanResolveRequest": ScanResolveRequest, "DailyStatsOut": DailyStatsOut,
+        "VehicleOut": VehicleOut, "EstimateRequest": EstimateRequest, "EstimateOut": EstimateOut,
     }
     assert set(models) == set(EXPECTED_KEYS)
     for name, model in models.items():

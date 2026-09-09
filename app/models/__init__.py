@@ -6,7 +6,9 @@ from app.models.pile import Pile, PileStatus
 from app.models.station import Station
 from app.models.user import User
 from app.models.user_setting import UserSetting
+from app.models.vehicle import Vehicle
 
 __all__ = [
-    "ChargingOrder", "DailyChargingStat", "Pile", "PileStatus", "Station", "User", "UserSetting",
+    "ChargingOrder", "DailyChargingStat", "Pile", "PileStatus", "Station", "User",
+    "UserSetting", "Vehicle",
 ]

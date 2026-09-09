@@ -21,7 +21,7 @@ from app.models.order import ChargingOrder, OrderStatus
 from app.models.pile import Pile, PileStatus
 from app.models.station import Station
 from app.models.user_setting import UserSetting
-from app.schemas.charging import RealtimeOut
+from app.schemas.charging import EstimateOut, RealtimeOut
 from app.services.realtime import get_provider
 
 
@@ -187,3 +187,25 @@ async def _auto_stop_if_needed(db: AsyncSession, user_id: str, order: ChargingOr
         return False
     await stop_order(db, user_id, order.id)
     return True
+
+
+async def estimate_order(db: AsyncSession, pile_id: str, expected_minutes: int) -> EstimateOut:
+    """费用预估（C 域 · Story 10）：预计电量 = 功率 × 时长，费用 = 电量 × 单价。
+
+    仅供参考，最终以 stop 结算为准；桩不存在/不可用（含 FAULT）一律拒绝。
+    """
+    pile = await db.get(Pile, pile_id)
+    if pile is None:
+        raise BizError(404, "充电桩不存在")
+    if pile.status != PileStatus.IDLE.value:
+        raise BizError(409, "该充电桩当前不可用")
+
+    expected_energy_kwh = round(pile.power_kw * expected_minutes / 60, 2)
+    estimated_cost = round(expected_energy_kwh * pile.price_per_kwh, 2)
+    return EstimateOut(
+        pile_id=pile.id,
+        unit_price=pile.price_per_kwh,
+        power_kw=pile.power_kw,
+        expected_energy_kwh=expected_energy_kwh,
+        estimated_cost=estimated_cost,
+    )
