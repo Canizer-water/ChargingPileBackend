@@ -14,7 +14,7 @@ from app.schemas.stat import DailyStatsOut
 from app.schemas.user import (LoginRequest, LogoutRequest, ProfileUpdateRequest,
                               RefreshRequest, RegisterRequest, TokenResult, UserOut,
                               UserSettingsOut, UserSettingsUpdate)
-from app.schemas.vehicle import VehicleOut
+from app.schemas.vehicle import VehicleOut, VehicleUpdate
 
 EXPECTED_KEYS: dict[str, set[str]] = {
     # 前端 Types.ets: UserAccount（去 password，服务端永不回传）
@@ -46,6 +46,8 @@ EXPECTED_KEYS: dict[str, set[str]] = {
     "DailyStatsOut": {"date", "totalEnergyKwh", "totalAmount", "orderCount"},
     # C 域（xiarepaiti·feat/c-data）新增映射（设计文档 §5.3/§5.5）
     "VehicleOut": {"plateNo", "battery", "rangeKm"},
+    # v0.9 车辆录入：仅请求体，无 Types.ets 对应接口（前端 VehicleService.updatePlate 使用）
+    "VehicleUpdate": {"plateNo"},
     "EstimateRequest": {"pileId", "expectedMinutes"},
     "EstimateOut": {"pileId", "unitPrice", "powerKw", "expectedEnergyKwh", "estimatedCost"},
 }
@@ -68,7 +70,8 @@ def test_model_field_contracts():
         "UserSettingsOut": UserSettingsOut, "UserSettingsUpdate": UserSettingsUpdate,
         "OrderPage": OrderPage,
         "ScanResolveRequest": ScanResolveRequest, "DailyStatsOut": DailyStatsOut,
-        "VehicleOut": VehicleOut, "EstimateRequest": EstimateRequest, "EstimateOut": EstimateOut,
+        "VehicleOut": VehicleOut, "VehicleUpdate": VehicleUpdate,
+        "EstimateRequest": EstimateRequest, "EstimateOut": EstimateOut,
     }
     assert set(models) == set(EXPECTED_KEYS)
     for name, model in models.items():
